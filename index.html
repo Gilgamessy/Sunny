@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>CodePen - Weather in Scotland</title>
+  
+
+</head>
+<body>
+<!-- partial:index.partial.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Scottish Cities Weather Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        #map { height: 600px; }
+    </style>
+</head>
+<body>
+    <h2>Weather Analysis for Scottish Cities</h2>
+    <label for="datePicker">Select a date:</label>
+    <input type="date" id="datePicker" value="2024-02-19">
+    <button onclick="updateWeather()">Show Weather</button>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        const myMap = L.map('map').setView([56.4907, -4.2026], 6);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors',
+            maxZoom: 18,
+        }).addTo(myMap);
+
+        const locations = [
+            { name: 'Glasgow', lat: 55.8642, lon: -4.2518 },
+            { name: 'Edinburgh', lat: 55.9533, lon: -3.1883 },
+            { name: 'Aberdeen', lat: 57.1497, lon: -2.0943 },
+            { name: 'Inverness', lat: 57.4781, lon: -4.2233 },
+            { name: 'St Andrews', lat: 56.3398, lon: -2.7967 },
+            { name: 'Stirling', lat: 56.1190, lon: -3.9369 },
+            { name: 'Perth', lat: 56.3952, lon: -3.4314 },
+            { name: 'Oban', lat: 56.4120, lon: -5.4720 },
+            { name: 'Elgin', lat: 57.6490, lon: -3.3185 },
+            { name: 'Lenzie', lat: 55.9217, lon: -4.1539 },
+            { name: 'Fort William', lat: 56.8198, lon: -5.1052 }
+        ];
+
+        locations.forEach(location => {
+            L.marker([location.lat, location.lon])
+                .addTo(myMap)
+                .bindPopup(`<b>${location.name}</b>: Weather data not loaded`);
+        });
+
+        async function updateWeather() {
+            const selectedDate = document.getElementById('datePicker').value;
+            for (const location of locations) {
+                const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${location.lat}&longitude=${location.lon}&hourly=weathercode&start=${selectedDate}&end=${selectedDate}`;
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+
+                let longestClearPeriod = 0, currentPeriod = 0, longestStartIndex = -1, currentStartIndex = 0;
+                data.hourly.weathercode.forEach((code, index) => {
+                    if (code === 0) { // Clear sky
+                        if (currentPeriod === 0) currentStartIndex = index;
+                        currentPeriod++;
+                        if (currentPeriod > longestClearPeriod) {
+                            longestClearPeriod = currentPeriod;
+                            longestStartIndex = currentStartIndex;
+                        }
+                    } else {
+                        currentPeriod = 0;
+                    }
+                });
+
+                let popupContent = `<b>${location.name}</b>: `;
+                if (longestClearPeriod > 0) {
+                    const startTime = data.hourly.time[longestStartIndex];
+                    const endTime = data.hourly.time[longestStartIndex + longestClearPeriod - 1];
+                    popupContent += `Clear sky from ${startTime.substring(11, 16)} to ${endTime.substring(11, 16)}`;
+                } else {
+                    popupContent += "No long continuous clear sky period found";
+                }
+
+                const marker = L.marker([location.lat, location.lon])
+                    .addTo(myMap)
+                    .bindPopup(popupContent);
+                marker.openPopup();
+            }
+        }
+    </script>
+</body>
+</html>
+<!-- partial -->
+  
+</body>
+</html>
